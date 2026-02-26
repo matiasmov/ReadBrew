@@ -28,4 +28,10 @@ public class User {
     @JsonIgnore
     @Column(nullable = false)
     private String password;
+
+    @Column(nullable = false)
+    private int xp;
+
+    @Column(nullable = false)
+    private int level;
 }
