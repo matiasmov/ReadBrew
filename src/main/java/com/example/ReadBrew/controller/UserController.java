@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
+
 @RestController 
 @RequestMapping("/api/users") 
 public class UserController {
@@ -20,6 +22,8 @@ public class UserController {
     @Autowired 
     private UserRepository userRepository;
 
+    @Autowired
+    private PasswordEncoder passwordEncoder;
     
     @GetMapping
     public List<User> listAll() {
@@ -39,7 +43,12 @@ public class UserController {
         User newUser = new User();
         newUser.setUsername(data.getUsername());
         newUser.setEmail(data.getEmail());
-        newUser.setPassword(data.getPassword()); 
+
+        String hashedPassword = passwordEncoder.encode(data.getPassword());
+        newUser.setPassword(hashedPassword); 
+
+        newUser.setXp(0);
+        newUser.setLevel(1);
 
         userRepository.save(newUser);
 
