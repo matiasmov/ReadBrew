@@ -1,39 +1,58 @@
 package com.example.ReadBrew.controller;
+
 import com.example.ReadBrew.dto.UserRequestDTO;
 import com.example.ReadBrew.model.User;
 import com.example.ReadBrew.repository.UserRepository;
+
+import jakarta.validation.Valid;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
 
-
-@RestController
-@RequestMapping("/api/users")
+@RestController 
+@RequestMapping("/api/users") 
 public class UserController {
 
+    @Autowired 
+    private UserRepository userRepository;
+
     @Autowired
-    private UserRepository userRepository
-
+    private PasswordEncoder passwordEncoder;
+    
     @GetMapping
-    public List<User> listAll(){
-        return userRepository.findAll();    
+    public List<User> listAll() {
+        return userRepository.findAll();
     }
-
-
-    @PostMapping
-    public ResponseEntity<Object> createUser(@Valid @RequestBody UserRequestDTO data){
-        if (userRepository.findByEmail(data.getEmail()) != null){
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                                        .body("Erro: Este e-mail já está cadastrado.");
-        }
-    }
-
-
-
-
 
     
+    @PostMapping
+    public ResponseEntity<Object> createUser(@Valid @RequestBody UserRequestDTO data) {
+        
+        if (userRepository.findByEmail(data.getEmail()) != null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                                 .body("Erro: Este e-mail já está cadastrado.");
+        }
+
+        
+        User newUser = new User();
+        newUser.setUsername(data.getUsername());
+        newUser.setEmail(data.getEmail());
+
+        String hashedPassword = passwordEncoder.encode(data.getPassword());
+        newUser.setPassword(hashedPassword); 
+
+        newUser.setXp(0);
+        newUser.setLevel(1);
+
+        userRepository.save(newUser);
+
+       
+        return ResponseEntity.status(HttpStatus.CREATED).body(newUser);
+    }
 }
