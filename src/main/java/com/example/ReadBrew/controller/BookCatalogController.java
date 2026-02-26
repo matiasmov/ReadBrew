@@ -15,7 +15,7 @@ import com.example.ReadBrew.service.BookCatalogService;
 import jakarta.validation.constraints.NotBlank;
 
 @RestController
-@RequestMapping("/api/catalog")
+@RequestMapping("/api/v1/catalog")
 @Validated
 public class BookCatalogController {
 
