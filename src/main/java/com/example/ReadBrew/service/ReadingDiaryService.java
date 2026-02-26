@@ -8,10 +8,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.ReadBrew.dto.BookResponseDTO;
 import com.example.ReadBrew.model.Book;
+import com.example.ReadBrew.model.Coffee;
 import com.example.ReadBrew.model.ReadingDiary;
 import com.example.ReadBrew.model.ReadingStatus;
 import com.example.ReadBrew.model.User;
 import com.example.ReadBrew.repository.BookRepository;
+import com.example.ReadBrew.repository.CoffeeRepository;
 import com.example.ReadBrew.repository.ReadingDiaryRepository;
 import com.example.ReadBrew.repository.UserRepository; 
 
@@ -26,6 +28,9 @@ public class ReadingDiaryService {
 
     @Autowired
     private ReadingDiaryRepository readingDiaryRepository;
+
+    @Autowired
+    private CoffeeRepository coffeeRepository;
 
     @Transactional
     public ReadingDiary addBookToRoom(Long userId, BookResponseDTO googleBook, ReadingStatus status) {
@@ -65,5 +70,39 @@ public class ReadingDiaryService {
             throw new RuntimeException("\"User not found.");
         }
         return readingDiaryRepository.findByUserId(userId);
+    }
+
+    @Transactional
+    public ReadingDiary completeReading(Long diaryId, Long coffeeId, boolean liked) {
+      
+        ReadingDiary diary = readingDiaryRepository.findById(diaryId)
+                .orElseThrow(() -> new RuntimeException("Diary entry not found."));
+    if (diary.getStatus() == ReadingStatus.READ) {
+        throw new RuntimeException("This reading has already been completed..");
+    }
+
+        
+        Coffee coffee = coffeeRepository.findById(coffeeId)
+                .orElseThrow(() -> new RuntimeException("Coffee not found."));
+
+        
+        diary.setCoffee(coffee);
+        diary.setCoffeeConsumed(true);
+        diary.setLikedCoffee(liked);
+        diary.setStatus(ReadingStatus.READ); 
+        diary.setFinishedAt(java.time.LocalDateTime.now()); 
+
+        
+        User user = diary.getUser();
+        user.setXp(user.getXp() + 50);
+        
+       
+        if (user.getXp() >= 100) {
+            user.setLevel(user.getLevel() + 1);
+            user.setXp(user.getXp() - 100);
+        }
+
+        userRepository.save(user); 
+        return readingDiaryRepository.save(diary); 
     }
 }
