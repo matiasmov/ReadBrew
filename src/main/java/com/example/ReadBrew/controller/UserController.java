@@ -19,7 +19,7 @@ import com.example.ReadBrew.repository.UserRepository;
 import jakarta.validation.Valid;
 
 @RestController 
-@RequestMapping("/api/users") 
+@RequestMapping("/api/v1/users") 
 public class UserController {
 
     @Autowired 
