@@ -13,6 +13,10 @@ spring.jpa.properties.hibernate.jdbc.lob.non_contextual_creation=true
 external.book.api.url=https://www.googleapis.com/books/v1
 google.books.api.key=...
 
+# JWT
+
+${api.security.token.secret:...}
+
 # timeout
 spring.cloud.openfeign.client.config.default.connectTimeout=10000
 spring.cloud.openfeign.client.config.default.readTimeout=10000
