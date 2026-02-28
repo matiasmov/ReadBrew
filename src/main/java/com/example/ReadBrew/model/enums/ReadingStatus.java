@@ -1,4 +1,4 @@
-package com.example.ReadBrew.model;
+package com.example.ReadBrew.model.enums;
 
 public enum ReadingStatus {
     WANT_TO_READ,
