@@ -7,12 +7,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.ReadBrew.dto.RegisterDTO;
@@ -54,12 +56,24 @@ public class UserController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+    @GetMapping("/{id}")
+@PreAuthorize("hasAnyRole('USER', 'ADMIN')") 
+    public ResponseEntity<UserResponseDTO> getUserProfile(@PathVariable Long id) {
+         UserResponseDTO profile = userService.getMyProfile(id); 
+        return ResponseEntity.ok(profile);
+}
 
     @GetMapping("/avatars")
     public ResponseEntity<List<Avatar>> listAvatars() {
         return ResponseEntity.ok(userService.getAllAvailableAvatars());
     }
 
+    @GetMapping("/search")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    public ResponseEntity<List<UserResponseDTO>> searchUsers(@RequestParam String name) {
+        List<UserResponseDTO> result = userService.searchUsersByName(name);
+        return ResponseEntity.ok(result);
+}
    
 
     @GetMapping
@@ -68,12 +82,24 @@ public class UserController {
         return ResponseEntity.ok(userService.findAll());
     }
 
-    @PostMapping
-    public ResponseEntity<?> createUser(@Valid @RequestBody RegisterDTO data) { 
+    @PostMapping("/{id}/follow")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    public ResponseEntity<?> followUser(@PathVariable Long id) {
         try {
-            return ResponseEntity.status(HttpStatus.CREATED).body(userService.createUser(data));
+            User loggedInUser = getUserLoggedIn();
+            userService.followUser(loggedInUser.getId(), id);
+            return ResponseEntity.ok().body("You are now following this user!");
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+
+    @DeleteMapping("/{id}/unfollow")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    public ResponseEntity<?> unfollowUser(@PathVariable Long id) {
+        User loggedInUser = getUserLoggedIn();
+        userService.unfollowUser(loggedInUser.getId(), id);
+        return ResponseEntity.ok().body("You have unfollowed this user.");
+    }
+
 }
