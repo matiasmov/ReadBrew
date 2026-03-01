@@ -17,6 +17,8 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Data;
 
@@ -45,6 +47,17 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private int level = 1; 
 
+
+    @ManyToOne
+    @JoinColumn(name = "avatar_id") 
+    private Avatar profileAvatar;
+
+    public String getAvatarUrl() {
+    if (this.profileAvatar == null) {
+        return "/avatars/default_user.png"; 
+    }
+    return "/avatars/" + this.profileAvatar.getFileName();
+}
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
