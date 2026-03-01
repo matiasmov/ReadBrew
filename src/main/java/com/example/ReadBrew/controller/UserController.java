@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.ReadBrew.dto.UserRequestDTO;
+import com.example.ReadBrew.dto.RegisterDTO; 
 import com.example.ReadBrew.model.User;
 import com.example.ReadBrew.repository.UserRepository;
 
@@ -33,21 +33,20 @@ public class UserController {
         return userRepository.findAll();
     }
 
-    
     @PostMapping
-    public ResponseEntity<Object> createUser(@Valid @RequestBody UserRequestDTO data) {
+    public ResponseEntity<Object> createUser(@Valid @RequestBody RegisterDTO data) { 
         
-        if (userRepository.findByEmail(data.getEmail()) != null) {
+  
+        if (userRepository.findByEmail(data.email()) != null) { 
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                                 .body("Erro: Este e-mail já está cadastrado.");
+                                 .body("This email address is already registered");
         }
-
         
         User newUser = new User();
-        newUser.setUsername(data.getUsername());
-        newUser.setEmail(data.getEmail());
+        newUser.setUsername(data.username()); 
+        newUser.setEmail(data.email());       
 
-        String hashedPassword = passwordEncoder.encode(data.getPassword());
+        String hashedPassword = passwordEncoder.encode(data.password()); 
         newUser.setPassword(hashedPassword); 
 
         newUser.setXp(0);
@@ -55,7 +54,6 @@ public class UserController {
 
         userRepository.save(newUser);
 
-       
         return ResponseEntity.status(HttpStatus.CREATED).body(newUser);
     }
 }
