@@ -4,7 +4,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -13,8 +12,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.ReadBrew.dto.AuthenticationDTO;
 import com.example.ReadBrew.dto.RegisterDTO;
 import com.example.ReadBrew.model.User;
-import com.example.ReadBrew.repository.UserRepository;
 import com.example.ReadBrew.security.TokenService;
+import com.example.ReadBrew.service.UserService;
 
 import jakarta.validation.Valid;
 
@@ -26,10 +25,10 @@ public class AuthenticationController {
     private AuthenticationManager authenticationManager;
 
     @Autowired
-    private UserRepository userRepository;
+    private TokenService tokenService;
 
     @Autowired
-    private TokenService tokenService;
+    private UserService userService; 
 
     @PostMapping("/login")
     public ResponseEntity login(@RequestBody AuthenticationDTO data) {
@@ -43,17 +42,12 @@ public class AuthenticationController {
 
     @PostMapping("/register")
     public ResponseEntity register(@RequestBody @Valid RegisterDTO data) {
-        if (this.userRepository.findByEmail(data.email()) != null) return ResponseEntity.badRequest().build();
-
-        String encryptedPassword = new BCryptPasswordEncoder().encode(data.password());
-        User newUser = new User();
-        newUser.setUsername(data.username());
-        newUser.setEmail(data.email());
-        newUser.setPassword(encryptedPassword);
-        
-
-        this.userRepository.save(newUser);
-
-        return ResponseEntity.ok().build();
+        try {
+            
+            userService.createUser(data);
+            return ResponseEntity.ok().build();
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 }
