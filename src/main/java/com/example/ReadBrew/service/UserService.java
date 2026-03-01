@@ -34,7 +34,7 @@ public class UserService {
         }
 
         User newUser = new User();
-        newUser.setUsername(data.username());
+        newUser.setNickname(data.username());
         newUser.setEmail(data.email());
         newUser.setPassword(passwordEncoder.encode(data.password()));
         newUser.setLevel(1);
@@ -70,21 +70,57 @@ public class UserService {
     return avatarRepository.findAll();
 }
 
-   
-    private UserResponseDTO toDTO(User user) {
+   private UserResponseDTO toDTO(User user) {
         return new UserResponseDTO(
             user.getId(), 
-            user.getUsername(), 
+            user.getNickname(), 
             user.getEmail(), 
             user.getLevel(), 
             user.getXp(), 
-            user.getProfileAvatar()
+            user.getProfileAvatar(),
+            user.getFollowers() != null ? user.getFollowers().size() : 0,
+            user.getFollowing() != null ? user.getFollowing().size() : 0 
         );
+    }
+
+    @Transactional
+    public void followUser(Long currentUserId, Long targetUserId) {
+        if (currentUserId.equals(targetUserId)) {
+            throw new RuntimeException("It is not possible to follow oneself.");
+        }
+
+        User currentUser = userRepository.findById(currentUserId)
+                .orElseThrow(() -> new RuntimeException("Logged-in user not found."));
+        User targetUser = userRepository.findById(targetUserId)
+                .orElseThrow(() -> new RuntimeException("Target user not found."));
+
+        targetUser.getFollowers().add(currentUser);
+        userRepository.save(targetUser); 
+    }
+
+ 
+    @Transactional
+    public void unfollowUser(Long currentUserId, Long targetUserId) {
+        User currentUser = userRepository.findById(currentUserId).orElseThrow();
+        User targetUser = userRepository.findById(targetUserId).orElseThrow();
+
+        targetUser.getFollowers().remove(currentUser);
+        userRepository.save(targetUser);
     }
 
     public UserResponseDTO getMyProfile(Long userId) {
     User user = userRepository.findById(userId)
             .orElseThrow(() -> new RuntimeException("User not found."));
     return toDTO(user);
+
+    
+}
+
+public List<UserResponseDTO> searchUsersByName(String name) {
+       
+        return userRepository.findByNicknameContainingIgnoreCase(name)
+                .stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
 }
 }
