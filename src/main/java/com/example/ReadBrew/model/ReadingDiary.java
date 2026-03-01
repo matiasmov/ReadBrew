@@ -2,6 +2,7 @@ package com.example.ReadBrew.model;
 
 import java.time.LocalDateTime;
 
+import com.example.ReadBrew.model.enums.ReadingStatus;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import jakarta.persistence.Column;
@@ -19,6 +20,7 @@ import lombok.Data;
 @Entity
 @Table(name = "reading_diaries")
 @Data
+
 public class ReadingDiary {
 
     @Id
@@ -44,11 +46,37 @@ public class ReadingDiary {
     @Column(nullable = false)
     private ReadingStatus status; 
 
-    private Boolean coffeeConsumed = false; 
+    private boolean coffeeConsumed = false; 
 
     private Boolean likedCoffee; 
 
     private Integer bookRating; 
 
+    @Column(columnDefinition = "TEXT") 
+    private String review;
+
     private LocalDateTime finishedAt; 
+
+    @ManyToOne
+    @JoinColumn(name = "recommended_coffee_id") 
+    private Coffee recommendedCoffee;
+
+     // Lombok error again, i need this :( 
+
+    public Coffee getRecommendedCoffee() {
+        return recommendedCoffee;
+    }
+
+    public void setRecommendedCoffee(Coffee recommendedCoffee) {
+        this.recommendedCoffee = recommendedCoffee;
+    }
+
+    public ReadingStatus getStatus() {
+        return status;
+    }
+   
+    public void setStatus(ReadingStatus status) {
+        this.status = status;
+    }
+
 }
