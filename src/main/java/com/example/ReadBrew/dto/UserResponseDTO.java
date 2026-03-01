@@ -1,11 +1,12 @@
 package com.example.ReadBrew.dto;
 
-import lombok.Data;
+import com.example.ReadBrew.model.Avatar;
 
-@Data
-public class UserResponseDTO {
-    private String username;
-    private int level;
-    private int xp;
- 
-}
+public record UserResponseDTO(
+    Long id,
+    String username,
+    String email,
+    int level,
+    int xp,
+    Avatar profileAvatar
+) {}
