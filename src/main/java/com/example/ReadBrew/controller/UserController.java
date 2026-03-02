@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import com.example.ReadBrew.dto.UserProfileDTO;
 
 import com.example.ReadBrew.dto.RegisterDTO;
 import com.example.ReadBrew.dto.UserResponseDTO;
@@ -40,9 +41,9 @@ public class UserController {
 
     @GetMapping("/me")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    public ResponseEntity<UserResponseDTO> getMyProfile() {
+    public ResponseEntity<UserProfileDTO> getMyProfile() { 
         User loggedInUser = getUserLoggedIn();
-        UserResponseDTO profile = userService.getMyProfile(loggedInUser.getId());
+        UserProfileDTO profile = userService.getMyProfile(loggedInUser.getId()); 
         return ResponseEntity.ok(profile);
     }
 
@@ -57,11 +58,11 @@ public class UserController {
         }
     }
     @GetMapping("/{id}")
-@PreAuthorize("hasAnyRole('USER', 'ADMIN')") 
-    public ResponseEntity<UserResponseDTO> getUserProfile(@PathVariable Long id) {
-         UserResponseDTO profile = userService.getMyProfile(id); 
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')") 
+    public ResponseEntity<UserProfileDTO> getUserProfile(@PathVariable Long id) { 
+        UserProfileDTO profile = userService.getMyProfile(id); 
         return ResponseEntity.ok(profile);
-}
+    }
 
     @GetMapping("/avatars")
     public ResponseEntity<List<Avatar>> listAvatars() {
@@ -75,7 +76,6 @@ public class UserController {
         return ResponseEntity.ok(result);
 }
    
-
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UserResponseDTO>> listAll() {
