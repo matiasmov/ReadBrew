@@ -6,20 +6,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.example.ReadBrew.dto.ReadingCompletionResponseDTO;
+import com.example.ReadBrew.dto.ReadingDiaryResponseDTO; 
 import com.example.ReadBrew.dto.UserStatsDTO;
 import com.example.ReadBrew.dto.BookResponseDTO;
 import com.example.ReadBrew.dto.CompleteReadingDTO;
-import com.example.ReadBrew.model.ReadingDiary;
 import com.example.ReadBrew.model.User;
 import com.example.ReadBrew.service.ReadingDiaryService;
 
@@ -35,41 +28,42 @@ public class ReadingDiaryController {
         return (User) authentication.getPrincipal();
     }
 
-    
     @GetMapping("/my-books")
-    public ResponseEntity<List<ReadingDiary>> getMyBooks() {
+    public ResponseEntity<List<ReadingDiaryResponseDTO>> getMyBooks() {
         User loggedInUser = getUserLoggedIn(); 
         return ResponseEntity.ok(readingDiaryService.getUserEntries(loggedInUser.getId()));
-}
-
-    @PostMapping("/add")
-    public ResponseEntity<ReadingDiary> addToProfile(@RequestBody BookResponseDTO bookDto) {
-        User loggedInUser = getUserLoggedIn(); 
-        ReadingDiary savedEntry = readingDiaryService.addToProfile(loggedInUser.getId(), bookDto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(savedEntry);
     }
 
-   
+    @PostMapping("/add")
+    public ResponseEntity<ReadingDiaryResponseDTO> addToProfile(@RequestBody BookResponseDTO bookDto) {
+        User loggedInUser = getUserLoggedIn(); 
+        ReadingDiaryResponseDTO response = readingDiaryService.addToProfile(loggedInUser.getId(), bookDto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
     @PatchMapping("/{diaryId}/start")
-    public ResponseEntity<ReadingDiary> startReading(@PathVariable Long diaryId) {
+    public ResponseEntity<ReadingDiaryResponseDTO> startReading(@PathVariable Long diaryId) {
         User loggedInUser = getUserLoggedIn();
-        ReadingDiary updatedEntry = readingDiaryService.startReading(diaryId, loggedInUser.getId());
+        ReadingDiaryResponseDTO updatedEntry = readingDiaryService.startReading(diaryId, loggedInUser.getId());
         return ResponseEntity.ok(updatedEntry);
     }
 
-  
- @PatchMapping("/{diaryId}/complete")
+    @PatchMapping("/{diaryId}/complete")
     public ResponseEntity<ReadingCompletionResponseDTO> completeReading( 
             @PathVariable Long diaryId,
             @RequestBody CompleteReadingDTO dto) { 
         
         User loggedInUser = getUserLoggedIn();
-        
-       
         ReadingCompletionResponseDTO response = readingDiaryService.completeReading(diaryId, loggedInUser.getId(), dto);
         
         return ResponseEntity.ok(response);
-    
+    }
+
+    @DeleteMapping("/{diaryId}")
+    public ResponseEntity<Void> removeOrAbandon(@PathVariable Long diaryId) {
+        User loggedInUser = getUserLoggedIn();
+        readingDiaryService.removeOrAbandonBook(diaryId, loggedInUser.getId());
+        return ResponseEntity.noContent().build(); 
     }
 
     @GetMapping("/stats")
@@ -79,11 +73,10 @@ public class ReadingDiaryController {
         return ResponseEntity.ok(stats);
     }
 
-  
     @GetMapping 
-    public ResponseEntity<List<ReadingDiary>> getMyRoom() {
+    public ResponseEntity<List<ReadingDiaryResponseDTO>> getMyRoom() {
         User loggedInUser = getUserLoggedIn(); 
-        List<ReadingDiary> diaryEntries = readingDiaryService.getUserEntries(loggedInUser.getId());
+        List<ReadingDiaryResponseDTO> diaryEntries = readingDiaryService.getUserEntries(loggedInUser.getId());
         return ResponseEntity.ok(diaryEntries);
     }
 }
