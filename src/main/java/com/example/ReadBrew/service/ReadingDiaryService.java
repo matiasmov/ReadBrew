@@ -1,7 +1,11 @@
 package com.example.ReadBrew.service;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -10,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.ReadBrew.dto.BookResponseDTO;
 import com.example.ReadBrew.dto.CompleteReadingDTO; 
 import com.example.ReadBrew.dto.ReadingCompletionResponseDTO;
+import com.example.ReadBrew.dto.UserStatsDTO;
 import com.example.ReadBrew.model.Book;
 import com.example.ReadBrew.model.Coffee;
 import com.example.ReadBrew.model.ReadingDiary;
@@ -151,7 +156,7 @@ public class ReadingDiaryService {
                 .status(diary.getStatus().name())
                 .finishedAt(diary.getFinishedAt())
                 .bookTitle(diary.getBook().getTitle())
-                .bookAuthor(diary.getBook().getAuthors() != null && !diary.getBook().getAuthors().isEmpty() ? diary.getBook().getAuthors().get(0) : "Autor desconhecido")
+                .bookAuthor(diary.getBook().getAuthors() != null && !diary.getBook().getAuthors().isEmpty() ? diary.getBook().getAuthors().get(0) : "Unknown author")
                 .xpGained(xpGained)
                 .currentXp(user.getXp())
                 .currentLevel(user.getLevel())
@@ -161,6 +166,47 @@ public class ReadingDiaryService {
                 .bookRating(diary.getBookRating())
                 .review(diary.getReview())
                 .build();
+    }
+    public UserStatsDTO getUserStats(Long userId) {
+      
+        List<ReadingDiary> completedBooks = readingDiaryRepository.findByUserIdAndStatus(userId, ReadingStatus.READ);
+
+        
+        if (completedBooks == null || completedBooks.isEmpty()) {
+            return new UserStatsDTO(0L, 0, "He hasn't tasted any coffee yet.", Collections.emptyList());
+        }
+
+        
+        long totalPages = completedBooks.stream()
+                .map(diary -> diary.getBook().getPageCount())
+                .filter(Objects::nonNull) 
+                .mapToLong(Integer::longValue)
+                .sum();
+
+       
+        String favoriteCoffee = completedBooks.stream()
+                .filter(ReadingDiary::getLikedCoffee) 
+                .map(diary -> diary.getCoffee() != null ? diary.getCoffee().getName() : null)
+                .filter(Objects::nonNull)
+                .collect(Collectors.groupingBy(name -> name, Collectors.counting())) 
+                .entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey)
+                .orElse("don't have a favorite yet.");
+
+    
+        List<String> topGenres = completedBooks.stream()
+                .map(diary -> diary.getBook().getCategories())
+                .filter(Objects::nonNull) 
+                .flatMap(List::stream) 
+                .collect(Collectors.groupingBy(genre -> genre, Collectors.counting())) 
+                .entrySet().stream()
+                .sorted((e1, e2) -> Long.compare(e2.getValue(), e1.getValue()))
+                .limit(3) 
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList());
+
+        return new UserStatsDTO(totalPages, completedBooks.size(), favoriteCoffee, topGenres);
     }
 
     public List<ReadingDiary> getUserEntries(Long userId) {
