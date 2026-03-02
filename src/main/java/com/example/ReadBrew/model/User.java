@@ -1,7 +1,9 @@
 package com.example.ReadBrew.model;
 
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -18,9 +20,13 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
 @Entity
 @Table(name = "users")
@@ -32,7 +38,7 @@ public class User implements UserDetails {
     private long id;
 
     @Column(nullable = false, unique = true)
-    private String username;
+    private String nickname;
 
     @Column(nullable = false, unique = true)
     private String email;
@@ -73,7 +79,25 @@ public class User implements UserDetails {
         }
     }
 
+
+
+    // user's followers
+    
+    @ManyToMany
+    @JoinTable(
+        name = "user_followers", 
+        joinColumns = @JoinColumn(name = "user_id"),
+        inverseJoinColumns = @JoinColumn(name = "follower_id")
+    )
+    @EqualsAndHashCode.Exclude 
+    @ToString.Exclude          
+    private Set<User> followers = new HashSet<>();
    
+    @ManyToMany(mappedBy = "followers")
+    @EqualsAndHashCode.Exclude 
+    @ToString.Exclude
+    private Set<User> following = new HashSet<>();
+
     @Override
     public String getUsername() {
         return email; 

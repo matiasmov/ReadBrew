@@ -12,4 +12,5 @@ public interface ReadingDiaryRepository extends JpaRepository<ReadingDiary, Long
     List<ReadingDiary> findByUserId(Long userId);
 
     boolean existsByUserIdAndBookId(Long userId, Long bookId);
+    
 }

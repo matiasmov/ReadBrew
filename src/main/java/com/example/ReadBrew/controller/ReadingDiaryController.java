@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.ReadBrew.dto.ReadingCompletionResponseDTO;
 import com.example.ReadBrew.dto.BookResponseDTO;
 import com.example.ReadBrew.dto.CompleteReadingDTO;
 import com.example.ReadBrew.model.ReadingDiary;
@@ -33,6 +34,12 @@ public class ReadingDiaryController {
         return (User) authentication.getPrincipal();
     }
 
+    
+    @GetMapping("/my-books")
+    public ResponseEntity<List<ReadingDiary>> getMyBooks() {
+        User loggedInUser = getUserLoggedIn(); 
+        return ResponseEntity.ok(readingDiaryService.getUserEntries(loggedInUser.getId()));
+}
 
     @PostMapping("/add")
     public ResponseEntity<ReadingDiary> addToProfile(@RequestBody BookResponseDTO bookDto) {
@@ -50,14 +57,18 @@ public class ReadingDiaryController {
     }
 
   
-    @PatchMapping("/{diaryId}/complete")
-    public ResponseEntity<ReadingDiary> completeReading(
+ @PatchMapping("/{diaryId}/complete")
+    public ResponseEntity<ReadingCompletionResponseDTO> completeReading( 
             @PathVariable Long diaryId,
             @RequestBody CompleteReadingDTO dto) { 
         
         User loggedInUser = getUserLoggedIn();
-        ReadingDiary updatedEntry = readingDiaryService.completeReading(diaryId, loggedInUser.getId(), dto);
-        return ResponseEntity.ok(updatedEntry);
+        
+       
+        ReadingCompletionResponseDTO response = readingDiaryService.completeReading(diaryId, loggedInUser.getId(), dto);
+        
+        return ResponseEntity.ok(response);
+    
     }
 
   
