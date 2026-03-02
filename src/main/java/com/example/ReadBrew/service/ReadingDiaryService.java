@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.ReadBrew.dto.BookResponseDTO;
 import com.example.ReadBrew.dto.CompleteReadingDTO; 
 import com.example.ReadBrew.dto.ReadingCompletionResponseDTO;
+import com.example.ReadBrew.dto.ReadingDiaryResponseDTO;
 import com.example.ReadBrew.dto.UserStatsDTO;
 import com.example.ReadBrew.model.Book;
 import com.example.ReadBrew.model.Coffee;
@@ -40,8 +41,11 @@ public class ReadingDiaryService {
     @Autowired
     private CoffeeRepository coffeeRepository;
 
+    @Autowired
+    private AchievementService achievementService;
+
     @Transactional
-    public ReadingDiary addToProfile(Long userId, BookResponseDTO googleBook) {
+    public ReadingDiaryResponseDTO addToProfile(Long userId, BookResponseDTO googleBook) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found."));
 
@@ -49,7 +53,6 @@ public class ReadingDiaryService {
                 .orElseGet(() -> {
                     Book newBook = new Book();
                     newBook.setExternalId(googleBook.getId());
-                    
                     newBook.setTitle(googleBook.getTitle() != null ? googleBook.getTitle() : "unknown title");
                     newBook.setAuthors(googleBook.getAuthors() != null ? googleBook.getAuthors() : List.of("unknown author"));
                     
@@ -60,15 +63,12 @@ public class ReadingDiaryService {
                     }
 
                     String thumb = (googleBook.getThumbnailUrl() != null && !googleBook.getThumbnailUrl().isBlank()) 
-                                   ? googleBook.getThumbnailUrl() 
-                                   : "/images/books/default_cover.png";
+                                   ? googleBook.getThumbnailUrl() : "/images/books/default_cover.png";
                     newBook.setThumbnailUrl(thumb);
                     
                     String desc = (googleBook.getDescription() != null && !googleBook.getDescription().isBlank())
-                                   ? googleBook.getDescription()
-                                   : "The synopsis for this book is not available.";
+                                   ? googleBook.getDescription() : "No synopsis available.";
                     newBook.setDescription(desc);
-                    
                     newBook.setPageCount(googleBook.getPageCount());
 
                     return bookRepository.save(newBook);
@@ -82,21 +82,29 @@ public class ReadingDiaryService {
         entry.setUser(user);
         entry.setBook(book);
         entry.setStatus(ReadingStatus.TO_READ);
-        entry.setRecommendedCoffee(null); 
         entry.setCoffeeConsumed(false);
 
-        return readingDiaryRepository.save(entry);
+        ReadingDiary savedEntry = readingDiaryRepository.save(entry);
+
+        return ReadingDiaryResponseDTO.builder()
+                .id(savedEntry.getId())
+                .status(savedEntry.getStatus().name())
+                .bookTitle(book.getTitle())
+                .author(book.getAuthors().get(0))
+                .thumbnailUrl(book.getThumbnailUrl())
+                .userName(user.getNickname())
+                .recommendedCoffee("Not recommended yet") 
+                .build();
     }
 
-
     @Transactional
-    public ReadingDiary startReading(Long diaryId, Long userId) {
+    public ReadingDiaryResponseDTO startReading(Long diaryId, Long userId) {
         ReadingDiary diary = readingDiaryRepository.findById(diaryId)
                 .orElseThrow(() -> new RuntimeException("Diary entry not found."));
 
-      
+       
         if (diary.getUser().getId() != userId) {
-            throw new RuntimeException("Access Denied: Not your book!");
+            throw new RuntimeException("Access Denied!");
         }
 
         if (diary.getStatus() != ReadingStatus.TO_READ) {
@@ -108,9 +116,28 @@ public class ReadingDiaryService {
         diary.setRecommendedCoffee(suggestion);
         diary.setStatus(ReadingStatus.READING);
         
-        return readingDiaryRepository.save(diary);
+        ReadingDiary savedDiary = readingDiaryRepository.save(diary);
+
+        return convertToDTO(savedDiary);
     }
 
+    private ReadingDiaryResponseDTO convertToDTO(ReadingDiary diary) {
+        Coffee coffee = diary.getRecommendedCoffee();
+        
+        return ReadingDiaryResponseDTO.builder()
+                .id(diary.getId())
+                .status(diary.getStatus().name())
+                .bookTitle(diary.getBook().getTitle())
+                .author(diary.getBook().getAuthors() != null && !diary.getBook().getAuthors().isEmpty() 
+                        ? diary.getBook().getAuthors().get(0) : "Unknown")
+                .thumbnailUrl(diary.getBook().getThumbnailUrl())
+                .userName(diary.getUser().getNickname())
+                .recommendedCoffee(coffee != null ? coffee.getName() : "None")
+                .recommendedCoffeeDescription(coffee != null ? coffee.getDescription() : null)
+                .recommendedCoffeeRecipe(coffee != null ? coffee.getRecipe() : null)
+                .recommendedCoffeeImageUrl(coffee != null ? coffee.getPixelArtUrl() : null)
+                .build();
+    }
 
     @Transactional
     public ReadingCompletionResponseDTO completeReading(Long diaryId, Long userId, CompleteReadingDTO dto) {
@@ -121,22 +148,25 @@ public class ReadingDiaryService {
             throw new RuntimeException("Access Denied!");
         }
 
+
         if (diary.getStatus() == ReadingStatus.READ) {
             throw new RuntimeException("Already completed.");
         }
 
-        Coffee coffee = coffeeRepository.findById(dto.getCoffeeId())
-                .orElseThrow(() -> new RuntimeException("Coffee not found."));
+       
+        if (diary.getRecommendedCoffee() == null) {
+            throw new RuntimeException("No recommendation found. Please start the reading properly first.");
+        }
 
-        diary.setCoffee(coffee);
+        diary.setCoffee(diary.getRecommendedCoffee());
         diary.setCoffeeConsumed(true);
+        
         diary.setLikedCoffee(dto.isLikedCoffee());
         diary.setBookRating(dto.getBookRating());
         diary.setReview(dto.getReview());
         diary.setStatus(ReadingStatus.READ);
         diary.setFinishedAt(LocalDateTime.now());
 
-      
         User user = diary.getUser();
         int xpGained = 50;
         user.setXp(user.getXp() + xpGained);
@@ -151,52 +181,70 @@ public class ReadingDiaryService {
         userRepository.save(user);
         readingDiaryRepository.save(diary);
 
+    
+        UserStatsDTO stats = getUserStats(user.getId());
+        achievementService.checkAndUnlockAchievements(user, diary, stats.getBooksCompleted(), stats.getTopGenres());
+
         return ReadingCompletionResponseDTO.builder()
                 .id(diary.getId())
                 .status(diary.getStatus().name())
                 .finishedAt(diary.getFinishedAt())
                 .bookTitle(diary.getBook().getTitle())
-                .bookAuthor(diary.getBook().getAuthors() != null && !diary.getBook().getAuthors().isEmpty() ? diary.getBook().getAuthors().get(0) : "Unknown author")
+                .bookAuthor(diary.getBook().getAuthors().get(0))
                 .xpGained(xpGained)
                 .currentXp(user.getXp())
                 .currentLevel(user.getLevel())
                 .levelUp(leveledUp)
-                .coffeeName(coffee.getName())
+                .coffeeName(diary.getCoffee().getName()) 
                 .likedCoffee(diary.getLikedCoffee())
                 .bookRating(diary.getBookRating())
                 .review(diary.getReview())
                 .build();
     }
-    public UserStatsDTO getUserStats(Long userId) {
-      
-        List<ReadingDiary> completedBooks = readingDiaryRepository.findByUserIdAndStatus(userId, ReadingStatus.READ);
 
+    public List<ReadingDiaryResponseDTO> getUserEntries(Long userId) {
+        List<ReadingDiary> entries = readingDiaryRepository.findByUserId(userId);
+
+        return entries.stream()
+                .map(diary -> ReadingDiaryResponseDTO.builder()
+                        .id(diary.getId())
+                        .status(diary.getStatus().name())
+                        .bookTitle(diary.getBook().getTitle())
+                        .author(diary.getBook().getAuthors() != null && !diary.getBook().getAuthors().isEmpty() 
+                                ? diary.getBook().getAuthors().get(0) : "Unknown")
+                        .thumbnailUrl(diary.getBook().getThumbnailUrl())
+                        .userName(diary.getUser().getNickname())
+                        .recommendedCoffee(diary.getRecommendedCoffee() != null ? 
+                                           diary.getRecommendedCoffee().getName() : "None")
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    public UserStatsDTO getUserStats(Long userId) {
+        List<ReadingDiary> completedBooks = readingDiaryRepository.findByUserIdAndStatus(userId, ReadingStatus.READ);
         
         if (completedBooks == null || completedBooks.isEmpty()) {
-            return new UserStatsDTO(0L, 0, "He hasn't tasted any coffee yet.", Collections.emptyList());
+            return new UserStatsDTO(0L, 0, "No coffee tasted yet.", Collections.emptyList());
         }
-
         
         long totalPages = completedBooks.stream()
-                .map(diary -> diary.getBook().getPageCount())
+                .map(d -> d.getBook().getPageCount())
                 .filter(Objects::nonNull) 
                 .mapToLong(Integer::longValue)
                 .sum();
 
-       
         String favoriteCoffee = completedBooks.stream()
                 .filter(ReadingDiary::getLikedCoffee) 
-                .map(diary -> diary.getCoffee() != null ? diary.getCoffee().getName() : null)
+                .map(d -> d.getCoffee() != null ? d.getCoffee().getName() : null)
                 .filter(Objects::nonNull)
                 .collect(Collectors.groupingBy(name -> name, Collectors.counting())) 
                 .entrySet().stream()
                 .max(Map.Entry.comparingByValue())
                 .map(Map.Entry::getKey)
-                .orElse("don't have a favorite yet.");
-
+                .orElse("No favorite yet.");
     
         List<String> topGenres = completedBooks.stream()
-                .map(diary -> diary.getBook().getCategories())
+                .map(d -> d.getBook().getCategories())
                 .filter(Objects::nonNull) 
                 .flatMap(List::stream) 
                 .collect(Collectors.groupingBy(genre -> genre, Collectors.counting())) 
@@ -209,20 +257,37 @@ public class ReadingDiaryService {
         return new UserStatsDTO(totalPages, completedBooks.size(), favoriteCoffee, topGenres);
     }
 
-    public List<ReadingDiary> getUserEntries(Long userId) {
-        return readingDiaryRepository.findByUserId(userId);
-    }
+    @Transactional
+    public void removeOrAbandonBook(Long diaryId, Long userId) {
+        ReadingDiary diary = readingDiaryRepository.findById(diaryId)
+                .orElseThrow(() -> new RuntimeException("Book not found on the shelf."));
 
+        if (diary.getUser().getId() != userId) {
+            throw new RuntimeException("Access Denied!");
+        }
+
+       
+        if (diary.getStatus() == ReadingStatus.TO_READ) {
+            readingDiaryRepository.delete(diary);
+        } 
+      
+        else if (diary.getStatus() == ReadingStatus.READING) {
+            diary.setStatus(ReadingStatus.ABANDONED);
+            readingDiaryRepository.save(diary);
+            
+            // FEAT/TIMELINE - nao apagar
+            // timelinePostRepository.save(new TimelinePost(...));
+        }
+    }
     private Coffee getCoffeeRecommendation(List<String> categories) {
         if (categories == null || categories.isEmpty()) {
             return coffeeRepository.findById(1L).orElse(null);
         }
-
         List<String> lowerCaseCategories = categories.stream()
                 .map(String::toLowerCase)
                 .toList();
-
         return coffeeRepository.findBestMatchByCategories(lowerCaseCategories)
                 .orElseGet(() -> coffeeRepository.findById(1L).orElse(null));
+                
     }
 }
