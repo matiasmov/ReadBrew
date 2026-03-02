@@ -10,13 +10,13 @@ public class Achievement {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String title;           
-    private String description;     
-    private String imageUrl;        
+    private String title;
+    private String description;
+    private String imageUrl;
     
-   
     private String rewardAvatarUrl; 
 
-    private String conditionType;  
-    private int conditionValue;     
+    private String metricType;   
+    private String metricDetail; 
+    private int targetValue;     
 }
