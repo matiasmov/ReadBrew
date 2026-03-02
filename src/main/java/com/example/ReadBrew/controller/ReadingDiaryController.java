@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.ReadBrew.dto.ReadingCompletionResponseDTO;
+import com.example.ReadBrew.dto.UserStatsDTO;
 import com.example.ReadBrew.dto.BookResponseDTO;
 import com.example.ReadBrew.dto.CompleteReadingDTO;
 import com.example.ReadBrew.model.ReadingDiary;
@@ -69,6 +70,13 @@ public class ReadingDiaryController {
         
         return ResponseEntity.ok(response);
     
+    }
+
+    @GetMapping("/stats")
+    public ResponseEntity<UserStatsDTO> getMyStats() {
+        User loggedInUser = getUserLoggedIn();
+        UserStatsDTO stats = readingDiaryService.getUserStats(loggedInUser.getId());
+        return ResponseEntity.ok(stats);
     }
 
   
