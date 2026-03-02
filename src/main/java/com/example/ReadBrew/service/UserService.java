@@ -10,10 +10,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.ReadBrew.dto.RegisterDTO;
 import com.example.ReadBrew.dto.UserResponseDTO;
+import com.example.ReadBrew.dto.UserProfileDTO;         
+import com.example.ReadBrew.dto.UnlockedBadgeDTO;      
+import com.example.ReadBrew.dto.UserStatsDTO;           
 import com.example.ReadBrew.model.Avatar;
 import com.example.ReadBrew.model.User;
+import com.example.ReadBrew.model.UserAchievement;      
 import com.example.ReadBrew.repository.AvatarRepository;
 import com.example.ReadBrew.repository.UserRepository;
+import com.example.ReadBrew.repository.UserAchievementRepository; 
 
 @Service
 public class UserService {
@@ -26,6 +31,13 @@ public class UserService {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private ReadingDiaryService readingDiaryService;
+
+    @Autowired
+    private UserAchievementRepository userAchievementRepository;
+  
 
     @Transactional
     public UserResponseDTO createUser(RegisterDTO data) {
@@ -67,10 +79,10 @@ public class UserService {
     }
 
     public List<Avatar> getAllAvailableAvatars() {
-    return avatarRepository.findAll();
-}
+        return avatarRepository.findAll();
+    }
 
-   private UserResponseDTO toDTO(User user) {
+    private UserResponseDTO toDTO(User user) {
         return new UserResponseDTO(
             user.getId(), 
             user.getNickname(), 
@@ -98,7 +110,6 @@ public class UserService {
         userRepository.save(targetUser); 
     }
 
- 
     @Transactional
     public void unfollowUser(Long currentUserId, Long targetUserId) {
         User currentUser = userRepository.findById(currentUserId).orElseThrow();
@@ -108,19 +119,39 @@ public class UserService {
         userRepository.save(targetUser);
     }
 
-    public UserResponseDTO getMyProfile(Long userId) {
-    User user = userRepository.findById(userId)
-            .orElseThrow(() -> new RuntimeException("User not found."));
-    return toDTO(user);
+    public UserProfileDTO getMyProfile(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found."));
 
-    
-}
+        UserStatsDTO stats = readingDiaryService.getUserStats(userId);
 
-public List<UserResponseDTO> searchUsersByName(String name) {
-       
+        List<UserAchievement> userBadges = userAchievementRepository.findByUserId(userId);
+
+        List<UnlockedBadgeDTO> badgesDTO = userBadges.stream()
+                .map(ua -> UnlockedBadgeDTO.builder()
+                        .id(ua.getAchievement().getId())
+                        .title(ua.getAchievement().getTitle())
+                        .description(ua.getAchievement().getDescription())
+                        .imageUrl(ua.getAchievement().getImageUrl())
+                        .unlockedAt(ua.getUnlockedAt())
+                        .build())
+                .collect(Collectors.toList());
+
+        return UserProfileDTO.builder()
+                .userId(user.getId())
+                .username(user.getNickname())
+                .avatarUrl(user.getProfileAvatar() != null ? user.getProfileAvatar().getFileName() : "/avatars/default_user.png")
+                .level(user.getLevel())
+                .currentXp(user.getXp())
+                .stats(stats)
+                .badges(badgesDTO)
+                .build();
+    }
+
+    public List<UserResponseDTO> searchUsersByName(String name) {
         return userRepository.findByNicknameContainingIgnoreCase(name)
                 .stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
-}
+    }
 }
