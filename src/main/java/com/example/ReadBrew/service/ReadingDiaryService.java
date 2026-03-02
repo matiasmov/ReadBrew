@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.ReadBrew.dto.BookResponseDTO;
 import com.example.ReadBrew.dto.CompleteReadingDTO; 
+import com.example.ReadBrew.dto.ReadingCompletionResponseDTO;
 import com.example.ReadBrew.model.Book;
 import com.example.ReadBrew.model.Coffee;
 import com.example.ReadBrew.model.ReadingDiary;
@@ -43,15 +44,33 @@ public class ReadingDiaryService {
                 .orElseGet(() -> {
                     Book newBook = new Book();
                     newBook.setExternalId(googleBook.getId());
-                    newBook.setTitle(googleBook.getTitle());
-                    newBook.setAuthors(googleBook.getAuthors());
-                    newBook.setCategories(googleBook.getCategories());
-                    newBook.setThumbnailUrl(googleBook.getThumbnailUrl());
+                    
+                    newBook.setTitle(googleBook.getTitle() != null ? googleBook.getTitle() : "unknown title");
+                    newBook.setAuthors(googleBook.getAuthors() != null ? googleBook.getAuthors() : List.of("unknown author"));
+                    
+                    if (googleBook.getCategories() == null || googleBook.getCategories().isEmpty()) {
+                        newBook.setCategories(List.of("Fiction"));
+                    } else {
+                        newBook.setCategories(googleBook.getCategories());
+                    }
+
+                    String thumb = (googleBook.getThumbnailUrl() != null && !googleBook.getThumbnailUrl().isBlank()) 
+                                   ? googleBook.getThumbnailUrl() 
+                                   : "/images/books/default_cover.png";
+                    newBook.setThumbnailUrl(thumb);
+                    
+                    String desc = (googleBook.getDescription() != null && !googleBook.getDescription().isBlank())
+                                   ? googleBook.getDescription()
+                                   : "The synopsis for this book is not available.";
+                    newBook.setDescription(desc);
+                    
+                    newBook.setPageCount(googleBook.getPageCount());
+
                     return bookRepository.save(newBook);
                 });
 
         if (readingDiaryRepository.existsByUserIdAndBookId(user.getId(), book.getId())) {
-            throw new RuntimeException("This book is already in your profile!");
+            throw new RuntimeException("This book is already on your shelf");
         }
 
         ReadingDiary entry = new ReadingDiary();
@@ -70,6 +89,7 @@ public class ReadingDiaryService {
         ReadingDiary diary = readingDiaryRepository.findById(diaryId)
                 .orElseThrow(() -> new RuntimeException("Diary entry not found."));
 
+      
         if (diary.getUser().getId() != userId) {
             throw new RuntimeException("Access Denied: Not your book!");
         }
@@ -88,11 +108,11 @@ public class ReadingDiaryService {
 
 
     @Transactional
-    public ReadingDiary completeReading(Long diaryId, Long userId, CompleteReadingDTO dto) {
+    public ReadingCompletionResponseDTO completeReading(Long diaryId, Long userId, CompleteReadingDTO dto) {
         ReadingDiary diary = readingDiaryRepository.findById(diaryId)
                 .orElseThrow(() -> new RuntimeException("Diary entry not found."));
 
-      if (diary.getUser().getId() != userId) {
+       if (diary.getUser().getId() != userId) {
             throw new RuntimeException("Access Denied!");
         }
 
@@ -103,50 +123,60 @@ public class ReadingDiaryService {
         Coffee coffee = coffeeRepository.findById(dto.getCoffeeId())
                 .orElseThrow(() -> new RuntimeException("Coffee not found."));
 
-        
         diary.setCoffee(coffee);
         diary.setCoffeeConsumed(true);
         diary.setLikedCoffee(dto.isLikedCoffee());
-        
-        
         diary.setBookRating(dto.getBookRating());
         diary.setReview(dto.getReview());
-
         diary.setStatus(ReadingStatus.READ);
         diary.setFinishedAt(LocalDateTime.now());
 
-     
+      
         User user = diary.getUser();
-        user.setXp(user.getXp() + 50);
+        int xpGained = 50;
+        user.setXp(user.getXp() + xpGained);
+        
+        boolean leveledUp = false; 
         if (user.getXp() >= 100) {
             user.setLevel(user.getLevel() + 1);
             user.setXp(user.getXp() - 100);
+            leveledUp = true;
         }
 
         userRepository.save(user);
-        return readingDiaryRepository.save(diary);
+        readingDiaryRepository.save(diary);
+
+        return ReadingCompletionResponseDTO.builder()
+                .id(diary.getId())
+                .status(diary.getStatus().name())
+                .finishedAt(diary.getFinishedAt())
+                .bookTitle(diary.getBook().getTitle())
+                .bookAuthor(diary.getBook().getAuthors() != null && !diary.getBook().getAuthors().isEmpty() ? diary.getBook().getAuthors().get(0) : "Autor desconhecido")
+                .xpGained(xpGained)
+                .currentXp(user.getXp())
+                .currentLevel(user.getLevel())
+                .levelUp(leveledUp)
+                .coffeeName(coffee.getName())
+                .likedCoffee(diary.getLikedCoffee())
+                .bookRating(diary.getBookRating())
+                .review(diary.getReview())
+                .build();
     }
 
     public List<ReadingDiary> getUserEntries(Long userId) {
         return readingDiaryRepository.findByUserId(userId);
     }
 
-  
     private Coffee getCoffeeRecommendation(List<String> categories) {
         if (categories == null || categories.isEmpty()) {
-            return coffeeRepository.findByNameContainingIgnoreCase("Latte").orElse(null);
+            return coffeeRepository.findById(1L).orElse(null);
         }
 
-        String mainCat = categories.get(0).toLowerCase();
+        List<String> lowerCaseCategories = categories.stream()
+                .map(String::toLowerCase)
+                .toList();
 
-        if (mainCat.contains("fiction") || mainCat.contains("fantasy")) {
-            return coffeeRepository.findByNameContainingIgnoreCase("Expresso").orElse(null);
-        } else if (mainCat.contains("romance")) {
-            return coffeeRepository.findByNameContainingIgnoreCase("Cappuccino").orElse(null);
-        } else if (mainCat.contains("horror") || mainCat.contains("mystery")) {
-            return coffeeRepository.findByNameContainingIgnoreCase("Preto").orElse(null);
-        }
-
-        return coffeeRepository.findById(1L).orElse(null);
+        return coffeeRepository.findBestMatchByCategories(lowerCaseCategories)
+                .orElseGet(() -> coffeeRepository.findById(1L).orElse(null));
     }
 }
