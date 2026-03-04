@@ -35,8 +35,7 @@ public class SecurityConfigurations {
             .requestMatchers("/api/v1/auth/**").permitAll()
             .requestMatchers("/error").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/v1/users/avatars").permitAll() 
-            .requestMatchers("/avatars/**").permitAll()
-            .requestMatchers("/coffees/**").permitAll() 
+            .requestMatchers("/images/**").permitAll()
             
             // ADM 
             .requestMatchers(HttpMethod.GET, "/api/v1/users").hasRole("ADMIN")
