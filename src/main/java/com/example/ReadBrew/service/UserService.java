@@ -9,16 +9,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.ReadBrew.dto.RegisterDTO;
+import com.example.ReadBrew.dto.UnlockedBadgeDTO;
+import com.example.ReadBrew.dto.UserProfileDTO;
 import com.example.ReadBrew.dto.UserResponseDTO;
-import com.example.ReadBrew.dto.UserProfileDTO;         
-import com.example.ReadBrew.dto.UnlockedBadgeDTO;      
 import com.example.ReadBrew.dto.UserStatsDTO;           
 import com.example.ReadBrew.model.Avatar;
 import com.example.ReadBrew.model.User;
 import com.example.ReadBrew.model.UserAchievement;      
 import com.example.ReadBrew.repository.AvatarRepository;
-import com.example.ReadBrew.repository.UserRepository;
-import com.example.ReadBrew.repository.UserAchievementRepository; 
+import com.example.ReadBrew.repository.UserAchievementRepository;
+import com.example.ReadBrew.repository.UserRepository; 
 
 @Service
 public class UserService {
@@ -140,7 +140,7 @@ public class UserService {
         return UserProfileDTO.builder()
                 .userId(user.getId())
                 .username(user.getNickname())
-                .avatarUrl(user.getProfileAvatar() != null ? user.getProfileAvatar().getFileName() : "/avatars/default_user.png")
+                .avatarUrl(user.getProfileAvatar() != null ? user.getProfileAvatar().getFileName() : "/images/avatars/default_user.png")
                 .level(user.getLevel())
                 .currentXp(user.getXp())
                 .stats(stats)
