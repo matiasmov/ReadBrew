@@ -37,7 +37,6 @@ public class UserService {
 
     @Autowired
     private UserAchievementRepository userAchievementRepository;
-  
 
     @Transactional
     public UserResponseDTO createUser(RegisterDTO data) {
@@ -140,11 +139,13 @@ public class UserService {
         return UserProfileDTO.builder()
                 .userId(user.getId())
                 .username(user.getNickname())
-                .avatarUrl(user.getProfileAvatar() != null ? user.getProfileAvatar().getFileName() : "/images/avatars/default_user.png")
+                .avatarUrl(user.getProfileAvatar() != null ? user.getProfileAvatar().getFileName() : "default_user.png")
                 .level(user.getLevel())
                 .currentXp(user.getXp())
                 .stats(stats)
                 .badges(badgesDTO)
+                .followersCount(user.getFollowers() != null ? user.getFollowers().size() : 0)
+                .followingCount(user.getFollowing() != null ? user.getFollowing().size() : 0)
                 .build();
     }
 
