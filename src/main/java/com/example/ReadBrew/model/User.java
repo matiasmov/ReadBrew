@@ -1,5 +1,6 @@
 package com.example.ReadBrew.model;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -53,6 +54,11 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private int level = 1; 
 
+    @Column
+    private int failedAttempts = 0;
+
+    @Column
+    private LocalDateTime lockoutTime;
 
     @ManyToOne
     @JoinColumn(name = "avatar_id") 
@@ -106,8 +112,14 @@ public class User implements UserDetails {
     @Override
     public boolean isAccountNonExpired() { return true; }
 
-    @Override
-    public boolean isAccountNonLocked() { return true; }
+   @Override
+    public boolean isAccountNonLocked() { 
+        if (this.lockoutTime == null) {
+            return true; 
+        }
+      
+        return LocalDateTime.now().isAfter(this.lockoutTime); 
+    }
 
     @Override
     public boolean isCredentialsNonExpired() { return true; }
