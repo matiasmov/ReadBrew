@@ -1,5 +1,6 @@
 package com.example.ReadBrew.service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -154,5 +155,35 @@ public class UserService {
                 .stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
+    }
+
+    public static final int MAX_FAILED_ATTEMPTS = 5;
+    public static final long LOCK_TIME_DURATION = 15; // minutes
+
+    @Transactional
+    public void increaseFailedAttempts(User user) {
+        int newFailures = user.getFailedAttempts() + 1;
+        user.setFailedAttempts(newFailures);
+        
+        if (newFailures >= MAX_FAILED_ATTEMPTS) {
+            user.setLockoutTime(LocalDateTime.now().plusMinutes(LOCK_TIME_DURATION));
+        }
+        userRepository.save(user);
+    }
+
+    @Transactional
+    public void resetFailedAttempts(User user) {
+        user.setFailedAttempts(0);
+        user.setLockoutTime(null);
+        userRepository.save(user);
+    }
+    
+    @Transactional
+    public void unlockWhenTimeExpired(User user) {
+        if (user.getLockoutTime() != null && LocalDateTime.now().isAfter(user.getLockoutTime())) {
+            user.setLockoutTime(null);
+            user.setFailedAttempts(0);
+            userRepository.save(user);
+        }
     }
 }
