@@ -8,6 +8,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,11 +20,14 @@ import com.example.ReadBrew.dto.UserStatsDTO;
 import com.example.ReadBrew.model.Book;
 import com.example.ReadBrew.model.Coffee;
 import com.example.ReadBrew.model.ReadingDiary;
+import com.example.ReadBrew.model.TimelineEvent;
 import com.example.ReadBrew.model.User;
 import com.example.ReadBrew.model.enums.ReadingStatus;
+import com.example.ReadBrew.model.enums.TimelineEventType;
 import com.example.ReadBrew.repository.BookRepository;
 import com.example.ReadBrew.repository.CoffeeRepository;
 import com.example.ReadBrew.repository.ReadingDiaryRepository;
+import com.example.ReadBrew.repository.TimelineEventRepository;
 import com.example.ReadBrew.repository.UserRepository;
 
 @Service
@@ -41,8 +45,13 @@ public class ReadingDiaryService {
     @Autowired
     private CoffeeRepository coffeeRepository;
 
+    // Treating a Circular Dependency
+    @Lazy
     @Autowired
     private AchievementService achievementService;
+
+    @Autowired
+    private TimelineEventRepository timelineEventRepository;
 
     @Transactional
     public ReadingDiaryResponseDTO addToProfile(Long userId, BookResponseDTO googleBook) {
@@ -102,7 +111,6 @@ public class ReadingDiaryService {
         ReadingDiary diary = readingDiaryRepository.findById(diaryId)
                 .orElseThrow(() -> new RuntimeException("Diary entry not found."));
 
-       
         if (diary.getUser().getId() != userId) {
             throw new RuntimeException("Access Denied!");
         }
@@ -117,6 +125,14 @@ public class ReadingDiaryService {
         diary.setStatus(ReadingStatus.READING);
         
         ReadingDiary savedDiary = readingDiaryRepository.save(diary);
+
+
+        TimelineEvent event = new TimelineEvent();
+        event.setUser(diary.getUser());
+        event.setEventType(TimelineEventType.STARTED_READING);
+        event.setBook(diary.getBook());
+        event.setCreatedAt(LocalDateTime.now());
+        timelineEventRepository.save(event);
 
         return convertToDTO(savedDiary);
     }
@@ -140,24 +156,29 @@ public class ReadingDiaryService {
     }
 
     @Transactional
-    public ReadingCompletionResponseDTO completeReading(Long diaryId, Long userId, CompleteReadingDTO dto) {
-        ReadingDiary diary = readingDiaryRepository.findById(diaryId)
-                .orElseThrow(() -> new RuntimeException("Diary entry not found."));
+public ReadingCompletionResponseDTO completeReading(Long diaryId, Long userId, CompleteReadingDTO dto) {
+    ReadingDiary diary = readingDiaryRepository.findById(diaryId)
+            .orElseThrow(() -> new RuntimeException("Diary entry not found."));
 
-       if (diary.getUser().getId() != userId) {
-            throw new RuntimeException("Access Denied!");
-        }
+    if (diary.getUser().getId() != userId) {
+        throw new RuntimeException("Acesso Negado!");
+    }
 
+    if (diary.getStatus() == ReadingStatus.READ) {
+        throw new RuntimeException("Esta leitura já foi concluída.");
+    }
 
-        if (diary.getStatus() == ReadingStatus.READ) {
-            throw new RuntimeException("Already completed.");
-        }
+    if (diary.getRecommendedCoffee() == null) {
+        throw new RuntimeException("Nenhuma recomendação encontrada. Por favor, comece a leitura corretamente primeiro.");
+    }
 
-       
-        if (diary.getRecommendedCoffee() == null) {
-            throw new RuntimeException("No recommendation found. Please start the reading properly first.");
-        }
+   // anti-spam
+    LocalDateTime trintaSegundosAtras = LocalDateTime.now().minusSeconds(30);
+    boolean postouRecentemente = timelineEventRepository.existsByUserIdAndCreatedAtAfter(userId, trintaSegundosAtras);
 
+    if (postouRecentemente) {
+        throw new RuntimeException("Calma, aventureiro! Você está lendo rápido demais. Aguarde 30 segundos para postar novamente.");
+    }
         diary.setCoffee(diary.getRecommendedCoffee());
         diary.setCoffeeConsumed(true);
         
@@ -181,7 +202,16 @@ public class ReadingDiaryService {
         userRepository.save(user);
         readingDiaryRepository.save(diary);
 
-    
+        TimelineEvent event = new TimelineEvent();
+        event.setUser(user);
+        event.setEventType(TimelineEventType.FINISHED_READING);
+        event.setBook(diary.getBook());
+        event.setCoffee(diary.getCoffee());
+        event.setRating(diary.getBookRating());
+        event.setReviewText(diary.getReview());
+        event.setCreatedAt(LocalDateTime.now());
+        timelineEventRepository.save(event);
+
         UserStatsDTO stats = getUserStats(user.getId());
         achievementService.checkAndUnlockAchievements(user, diary, stats.getBooksCompleted(), stats.getTopGenres());
 
@@ -266,7 +296,6 @@ public class ReadingDiaryService {
             throw new RuntimeException("Access Denied!");
         }
 
-       
         if (diary.getStatus() == ReadingStatus.TO_READ) {
             readingDiaryRepository.delete(diary);
         } 
@@ -275,10 +304,15 @@ public class ReadingDiaryService {
             diary.setStatus(ReadingStatus.ABANDONED);
             readingDiaryRepository.save(diary);
             
-            // FEAT/TIMELINE - nao apagar
-            // timelinePostRepository.save(new TimelinePost(...));
+            TimelineEvent event = new TimelineEvent();
+            event.setUser(diary.getUser());
+            event.setEventType(TimelineEventType.ABANDONED_BOOK);
+            event.setBook(diary.getBook());
+            event.setCreatedAt(LocalDateTime.now());
+            timelineEventRepository.save(event);
         }
     }
+
     private Coffee getCoffeeRecommendation(List<String> categories) {
         if (categories == null || categories.isEmpty()) {
             return coffeeRepository.findById(1L).orElse(null);
@@ -286,6 +320,7 @@ public class ReadingDiaryService {
         List<String> lowerCaseCategories = categories.stream()
                 .map(String::toLowerCase)
                 .toList();
+                
         return coffeeRepository.findBestMatchByCategories(lowerCaseCategories)
                 .orElseGet(() -> coffeeRepository.findById(1L).orElse(null));
                 
