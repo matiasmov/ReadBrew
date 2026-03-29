@@ -36,7 +36,7 @@ public class User implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long id;
+    private Long id;
 
     @Column(nullable = false, unique = true)
     private String nickname;
@@ -54,7 +54,7 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private int level = 1; 
 
-    @Column
+    @Column(nullable = false)
     private int failedAttempts = 0;
 
     @Column
