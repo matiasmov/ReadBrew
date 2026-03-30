@@ -42,8 +42,9 @@ public class SecurityConfigurations {
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
                 .requestMatchers("/api/v1/auth/**").permitAll()
                 .requestMatchers("/error").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/users/avatars").permitAll() 
+                .requestMatchers(HttpMethod.GET, "/api/v1/users/avatars").permitAll()
                 .requestMatchers("/images/**").permitAll()
+                .requestMatchers("/api/v1/public/**").permitAll()
                 
                 // ADM 
                 .requestMatchers(HttpMethod.GET, "/api/v1/users").hasRole("ADMIN")
