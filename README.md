@@ -44,10 +44,6 @@ Install dependencies
   OR
   
   .\mvnw.cmd clean install (if you are using Windows and the command above doesn't work...)
-
-  OR
-
-  mvn clean install (if you have Maven on your computer)
 ```
 
 Start the server
